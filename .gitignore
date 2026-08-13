@@ -1,0 +1,14 @@
+# Datos tributarios reales - NUNCA deben subirse a un repositorio.
+# La base de datos y los archivos de exógena cargados contienen información
+# sensible (cédulas, patrimonio, ingresos) y deben permanecer solo locales.
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+.venv/
+venv/
