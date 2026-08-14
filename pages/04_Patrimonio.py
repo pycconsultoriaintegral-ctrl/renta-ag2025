@@ -3,6 +3,7 @@ import streamlit as st
 
 from core.ui_common import init_app, sidebar_contribuyente, requiere_contribuyente, fmt_cop
 from core import patrimonio as pmod
+from core import autollenado
 
 st.set_page_config(page_title="Patrimonio - Renta AG2025", page_icon="🏠", layout="wide")
 init_app()
@@ -10,6 +11,26 @@ sidebar_contribuyente()
 cid = requiere_contribuyente()
 
 st.title("🏠 Patrimonio a 31 de diciembre de 2025")
+
+autocompletar_click = st.button(
+    "🔄 Autocompletar desde exógena (cuentas, CDT, vehículos, deudas)",
+    help="Trae automáticamente los registros de la exógena que la DIAN clasificó sin ambigüedad "
+         "como patrimonio (cuentas bancarias, CDT, vehículos, cuentas por pagar). No duplica lo "
+         "que ya haya sido agregado antes con este mismo botón.",
+)
+if autocompletar_click:
+    resultado = autollenado.autocompletar_patrimonio(cid)
+    if resultado["agregados"]:
+        st.success(f"Se agregaron {len(resultado['agregados'])} ítem(s) de patrimonio desde la exógena. "
+                    "Revíselos abajo y ajuste lo que corresponda (ej. vehículos: use el costo fiscal, no el avalúo).")
+    else:
+        st.info("No hay ítems nuevos de la exógena para agregar (ya se agregaron antes, o no hay registros de "
+                "patrimonio con categoría clara todavía — revise el módulo Ingresos).")
+    if resultado["omitidos_sin_categoria"]:
+        st.caption(f"{len(resultado['omitidos_sin_categoria'])} registro(s) de patrimonio de la exógena no se "
+                   "pudieron clasificar automáticamente en una categoría (ej. saldos genéricos sin detalle claro) "
+                   "y deben agregarse manualmente si corresponde.")
+    st.rerun()
 
 tab_activos, tab_pasivos = st.tabs(["Activos", "Deudas"])
 

@@ -121,6 +121,14 @@ if guardados:
     dfg = dfg.rename(columns={"nombre_reportante": "Tercero", "concepto": "Concepto", "valor": "Valor",
                                "archivo_origen": "Archivo"})
     st.dataframe(dfg, use_container_width=True)
-    st.write(f"**Total registros guardados:** {len(guardados)} · **Suma total:** {fmt_cop(sum(g['valor'] or 0 for g in guardados))}")
+    # Las filas "Tope N - ..." son INDICADORES AGREGADOS que la propia DIAN calcula
+    # a partir del resto de filas de detalle: sumarlas junto con el detalle duplica
+    # el valor. Se excluyen del total para no mostrar una cifra inflada y engañosa.
+    detalle_sin_topes = [g for g in guardados if not (g["concepto"] or "").strip().lower().startswith("tope")]
+    total_detalle = sum(g["valor"] or 0 for g in detalle_sin_topes)
+    total_topes = sum(g["valor"] or 0 for g in guardados) - total_detalle
+    st.write(f"**Total registros guardados:** {len(guardados)}")
+    st.write(f"**Suma del detalle (sin las filas 'Tope', para evitar doble conteo):** {fmt_cop(total_detalle)}")
+    st.caption(f"Suma de las filas 'Tope N' (indicadores agregados de la DIAN, no sumar con el detalle): {fmt_cop(total_topes)}")
 else:
     st.caption("Aún no hay registros guardados.")

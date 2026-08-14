@@ -113,7 +113,20 @@ def importar_exogena(path: str) -> ExogenaImportada:
 
     for i, fila in enumerate(filas[fila_encabezado_idx + 1 :], start=fila_encabezado_idx + 2):
         if all(c is None for c in fila):
-            continue
+            # Fin real de la tabla de la DIAN. Cualquier contenido posterior a la
+            # primera fila en blanco (por ejemplo, fórmulas o notas que el usuario
+            # haya agregado manualmente en el mismo archivo) se ignora a propósito:
+            # esta herramienta nunca debe tratar contenido añadido por el usuario
+            # en el Excel como si fuera información reportada por un tercero.
+            filas_restantes = filas[i:]
+            if any(any(c is not None for c in f) for f in filas_restantes):
+                resultado.advertencias.append(
+                    f"Se detectó contenido adicional después de la fila {i - 1} (fin de la tabla "
+                    "de la DIAN) y NO se importó, para evitar confundirlo con información reportada "
+                    "por terceros. Si agregó notas o fórmulas propias en este archivo, dicho contenido "
+                    "fue ignorado correctamente."
+                )
+            break
         valor_crudo = fila[5] if len(fila) > 5 else None
         try:
             valor = float(valor_crudo) if valor_crudo not in (None, "") else None

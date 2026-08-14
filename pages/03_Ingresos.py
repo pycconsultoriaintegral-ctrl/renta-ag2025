@@ -7,6 +7,7 @@ import streamlit as st
 from core import db
 from core.ui_common import init_app, sidebar_contribuyente, requiere_contribuyente, fmt_cop
 from core.conciliacion import ESTADOS_LABELS
+from core import autollenado
 
 st.set_page_config(page_title="Ingresos - Renta AG2025", page_icon="💰", layout="wide")
 init_app()
@@ -89,28 +90,49 @@ contrib = db.obtener_contribuyente(cid)
 perfil = json.loads(contrib.get("perfil_json") or "{}")
 ing_prev = perfil.get("ingresos_manual", {})
 
+if st.button("🔄 Autocompletar retenciones y renta de capital confirmadas desde la exógena",
+             help="Solo trae valores donde no hay ambigüedad: retenciones ya marcadas CONFIRMADO y "
+                  "rentas de capital ya marcadas CONFIRMADO. Trabajo, no laborales y pensión los debe "
+                  "revisar usted porque su tratamiento depende de hechos que la exógena no reporta "
+                  "(habitualidad, tiempo de tenencia, existencia de costos, etc.)."):
+    sugerencias = autollenado.autocompletar_ingresos(cid)
+    st.session_state[f"ing_capital_bruto_{cid}"] = float(ing_prev.get("capital_bruto", 0)) + sugerencias["capital_bruto_sugerido"]
+    perfil["retenciones_manual"] = float(perfil.get("retenciones_manual", 0)) + sugerencias["retenciones_sugeridas"]
+    db.upsert_contribuyente(cid, perfil_extra=perfil)
+    if sugerencias["pendientes_revision_manual"]:
+        detalle_pendientes = "; ".join(
+            f"{r['concepto']} ({fmt_cop(r['valor'])})" for r in sugerencias["pendientes_revision_manual"][:5]
+        )
+        st.warning(f"Quedan {len(sugerencias['pendientes_revision_manual'])} registro(s) de ingreso que "
+                   f"requieren su revisión manual (no se autocompletan): {detalle_pendientes}")
+    st.success(f"Retenciones sugeridas: {fmt_cop(sugerencias['retenciones_sugeridas'])} · "
+               f"Capital bruto sugerido: {fmt_cop(sugerencias['capital_bruto_sugerido'])}. "
+               "Se sumaron a lo que ya tenía guardado (revise que no queden duplicados si ya los había "
+               "ingresado manualmente antes).")
+    st.rerun()
+
 c1, c2 = st.columns(2)
 with c1:
     st.markdown("**Rentas de trabajo**")
-    trabajo_bruto = st.number_input("Ingresos brutos por trabajo", min_value=0.0, value=float(ing_prev.get("trabajo_bruto", 0)), step=100000.0)
-    trabajo_incrngo = st.number_input("Aportes obligatorios salud/pensión (INCRNGO)", min_value=0.0, value=float(ing_prev.get("trabajo_incrngo", 0)), step=10000.0)
+    trabajo_bruto = st.number_input("Ingresos brutos por trabajo", min_value=0.0, value=float(ing_prev.get("trabajo_bruto", 0)), step=100000.0, key=f"ing_trabajo_bruto_{cid}")
+    trabajo_incrngo = st.number_input("Aportes obligatorios salud/pensión (INCRNGO)", min_value=0.0, value=float(ing_prev.get("trabajo_incrngo", 0)), step=10000.0, key=f"ing_trabajo_incrngo_{cid}")
     st.markdown("**Rentas de capital**")
-    capital_bruto = st.number_input("Ingresos brutos de capital (intereses, arriendos)", min_value=0.0, value=float(ing_prev.get("capital_bruto", 0)), step=100000.0)
-    capital_costos = st.number_input("Costos/gastos asociados a rentas de capital", min_value=0.0, value=float(ing_prev.get("capital_costos", 0)), step=100000.0)
+    capital_bruto = st.number_input("Ingresos brutos de capital (intereses, arriendos)", min_value=0.0, value=float(ing_prev.get("capital_bruto", 0)), step=100000.0, key=f"ing_capital_bruto_{cid}")
+    capital_costos = st.number_input("Costos/gastos asociados a rentas de capital", min_value=0.0, value=float(ing_prev.get("capital_costos", 0)), step=100000.0, key=f"ing_capital_costos_{cid}")
 with c2:
     st.markdown("**Rentas no laborales**")
-    no_laboral_bruto = st.number_input("Ingresos brutos no laborales (honorarios independientes, etc.)", min_value=0.0, value=float(ing_prev.get("no_laboral_bruto", 0)), step=100000.0)
-    no_laboral_costos = st.number_input("Costos/gastos asociados a rentas no laborales", min_value=0.0, value=float(ing_prev.get("no_laboral_costos", 0)), step=100000.0)
+    no_laboral_bruto = st.number_input("Ingresos brutos no laborales (honorarios independientes, etc.)", min_value=0.0, value=float(ing_prev.get("no_laboral_bruto", 0)), step=100000.0, key=f"ing_no_laboral_bruto_{cid}")
+    no_laboral_costos = st.number_input("Costos/gastos asociados a rentas no laborales", min_value=0.0, value=float(ing_prev.get("no_laboral_costos", 0)), step=100000.0, key=f"ing_no_laboral_costos_{cid}")
     st.markdown("**Pensiones**")
-    pension_mensual = st.number_input("Ingreso mensual promedio por pensión", min_value=0.0, value=float(ing_prev.get("pension_mensual_promedio", 0)), step=100000.0)
-    meses_pension = st.number_input("Meses del año con pago de pensión", min_value=0, max_value=12, value=int(ing_prev.get("meses_pension", 12)))
+    pension_mensual = st.number_input("Ingreso mensual promedio por pensión", min_value=0.0, value=float(ing_prev.get("pension_mensual_promedio", 0)), step=100000.0, key=f"ing_pension_mensual_{cid}")
+    meses_pension = st.number_input("Meses del año con pago de pensión", min_value=0, max_value=12, value=int(ing_prev.get("meses_pension", 12)), key=f"ing_meses_pension_{cid}")
 
 st.markdown("**Dividendos y participaciones**")
 c3, c4 = st.columns(2)
-dividendos_no_gravados = c3.number_input("Dividendos no gravados (Art. 49 num. 3 ET)", min_value=0.0, value=float(ing_prev.get("dividendos_no_gravados", 0)), step=100000.0)
-dividendos_gravados = c4.number_input("Dividendos gravados", min_value=0.0, value=float(ing_prev.get("dividendos_gravados", 0)), step=100000.0)
+dividendos_no_gravados = c3.number_input("Dividendos no gravados (Art. 49 num. 3 ET)", min_value=0.0, value=float(ing_prev.get("dividendos_no_gravados", 0)), step=100000.0, key=f"ing_div_no_grav_{cid}")
+dividendos_gravados = c4.number_input("Dividendos gravados", min_value=0.0, value=float(ing_prev.get("dividendos_gravados", 0)), step=100000.0, key=f"ing_div_grav_{cid}")
 
-if st.button("💾 Guardar ingresos definitivos"):
+if st.button("💾 Guardar ingresos definitivos", type="primary"):
     perfil["ingresos_manual"] = {
         "trabajo_bruto": trabajo_bruto, "trabajo_incrngo": trabajo_incrngo,
         "capital_bruto": capital_bruto, "capital_costos": capital_costos,
@@ -120,3 +142,4 @@ if st.button("💾 Guardar ingresos definitivos"):
     }
     db.upsert_contribuyente(cid, perfil_extra=perfil)
     st.success("Ingresos definitivos guardados. Vaya al módulo de **Liquidación** para ver el cálculo.")
+    st.rerun()
