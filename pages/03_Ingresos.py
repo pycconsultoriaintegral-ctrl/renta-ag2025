@@ -143,3 +143,47 @@ if st.button("💾 Guardar ingresos definitivos", type="primary"):
     db.upsert_contribuyente(cid, perfil_extra=perfil)
     st.success("Ingresos definitivos guardados. Vaya al módulo de **Liquidación** para ver el cálculo.")
     st.rerun()
+
+st.markdown("---")
+st.markdown("### 4. Ganancias ocasionales")
+st.caption(
+    "Venta de activos poseídos por MÁS de 2 años, herencias/legados, loterías y similares. "
+    "Tributan aparte de la cédula general, normalmente al 15% sobre la utilidad (venta - costo fiscal). "
+    "Si el activo se poseyó 2 años o menos, NO va aquí: es renta ordinaria (arriba, en 'no laborales')."
+)
+
+ganancias_prev = perfil.get("ganancias_ocasionales", [])
+if ganancias_prev:
+    for i, g in enumerate(ganancias_prev):
+        cc1, cc2, cc3, cc4, cc5 = st.columns([2, 2, 2, 3, 1])
+        cc1.write(g.get("tipo", "otro"))
+        cc2.write(fmt_cop(g.get("valor_bruto", 0)))
+        cc3.write(fmt_cop(g.get("costo_fiscal", 0)))
+        cc4.write(g.get("nota", ""))
+        if cc5.button("🗑️", key=f"del_go_{i}_{cid}"):
+            ganancias_prev.pop(i)
+            perfil["ganancias_ocasionales"] = ganancias_prev
+            db.upsert_contribuyente(cid, perfil_extra=perfil)
+            st.rerun()
+else:
+    st.caption("Aún no hay ganancias ocasionales registradas.")
+
+with st.form(key=f"form_ganancia_ocasional_{cid}"):
+    st.markdown("**Agregar ganancia ocasional**")
+    gc1, gc2, gc3 = st.columns(3)
+    tipo_go = gc1.selectbox("Tipo", ["otro", "venta_vivienda", "herencia", "loteria_rifa_apuesta"],
+                             help="'venta_vivienda' aplica solo si es su casa/apto de habitación (exención hasta 5.000 UVT, "
+                                  "Art. 311-1 ET). 'herencia' aplica a la porción exenta de una herencia recibida en el año "
+                                  "(Art. 307 ET). 'otro' es el tratamiento general (venta de activo >2 años, sin exención "
+                                  "especial) - use esta opción por defecto si no está seguro.")
+    valor_bruto_go = gc2.number_input("Valor de la venta / valor bruto", min_value=0.0, step=100000.0)
+    costo_fiscal_go = gc3.number_input("Costo fiscal (precio de compra o valor de adjudicación)", min_value=0.0, step=100000.0)
+    nota_go = st.text_input("Nota (ej. fecha de adquisición y de venta, para dejar trazabilidad)")
+    if st.form_submit_button("➕ Agregar"):
+        ganancias_prev.append({
+            "tipo": tipo_go, "valor_bruto": valor_bruto_go, "costo_fiscal": costo_fiscal_go, "nota": nota_go,
+        })
+        perfil["ganancias_ocasionales"] = ganancias_prev
+        db.upsert_contribuyente(cid, perfil_extra=perfil)
+        st.success("Ganancia ocasional agregada.")
+        st.rerun()
