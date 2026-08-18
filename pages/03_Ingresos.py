@@ -95,9 +95,12 @@ if st.button("🔄 Autocompletar retenciones y renta de capital confirmadas desd
                   "rentas de capital ya marcadas CONFIRMADO. Trabajo, no laborales y pensión los debe "
                   "revisar usted porque su tratamiento depende de hechos que la exógena no reporta "
                   "(habitualidad, tiempo de tenencia, existencia de costos, etc.)."):
+    # Los valores sugeridos son totales ya calculados de forma fresca desde la
+    # conciliación (no acumulados) -> se REEMPLAZA el valor existente, nunca se
+    # suma, para que hacer clic varias veces no duplique las cifras.
     sugerencias = autollenado.autocompletar_ingresos(cid)
-    st.session_state[f"ing_capital_bruto_{cid}"] = float(ing_prev.get("capital_bruto", 0)) + sugerencias["capital_bruto_sugerido"]
-    perfil["retenciones_manual"] = float(perfil.get("retenciones_manual", 0)) + sugerencias["retenciones_sugeridas"]
+    st.session_state[f"ing_capital_bruto_{cid}"] = sugerencias["capital_bruto_sugerido"]
+    perfil["retenciones_manual"] = sugerencias["retenciones_sugeridas"]
     db.upsert_contribuyente(cid, perfil_extra=perfil)
     if sugerencias["pendientes_revision_manual"]:
         detalle_pendientes = "; ".join(
@@ -105,10 +108,11 @@ if st.button("🔄 Autocompletar retenciones y renta de capital confirmadas desd
         )
         st.warning(f"Quedan {len(sugerencias['pendientes_revision_manual'])} registro(s) de ingreso que "
                    f"requieren su revisión manual (no se autocompletan): {detalle_pendientes}")
-    st.success(f"Retenciones sugeridas: {fmt_cop(sugerencias['retenciones_sugeridas'])} · "
-               f"Capital bruto sugerido: {fmt_cop(sugerencias['capital_bruto_sugerido'])}. "
-               "Se sumaron a lo que ya tenía guardado (revise que no queden duplicados si ya los había "
-               "ingresado manualmente antes).")
+    st.success(f"Retenciones: {fmt_cop(sugerencias['retenciones_sugeridas'])} · "
+               f"Capital bruto: {fmt_cop(sugerencias['capital_bruto_sugerido'])}. "
+               "Estos valores REEMPLAZAN lo que hubiera en esos dos campos (puede hacer clic varias veces "
+               "sin duplicar). Si había agregado manualmente otro ingreso de capital no reportado por "
+               "terceros, vuelva a sumarlo aparte.")
     st.rerun()
 
 c1, c2 = st.columns(2)
