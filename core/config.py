@@ -109,6 +109,40 @@ MAX_DEPENDIENTES = 4
 # laboral): 10% de ingresos brutos de trabajo, máximo 32 UVT mensuales (384 UVT/año)
 DEDUCCION_10PCT_LABORAL_LIMITE_UVT_MENSUAL = 32
 
+# Exención de cesantías e intereses de cesantías (Art. 206 numeral 4 ET).
+# Rangos según el ingreso laboral mensual promedio de los últimos 6 meses de
+# vinculación. Verificado con dos fuentes (siemprealdia.co, gerencie.com) para AG2025.
+# (limite_inferior_uvt, limite_superior_uvt, porcentaje_exento)
+CESANTIAS_EXENCION_TABLA = [
+    (0, 350, 1.00),
+    (350, 410, 0.90),
+    (410, 470, 0.80),
+    (470, 530, 0.60),
+    (530, 590, 0.40),
+    (590, 650, 0.20),
+    (650, float("inf"), 0.00),
+]
+
+
+def calcular_exencion_cesantias(salario_mensual_promedio_pesos: float, valor_cesantias_e_intereses: float) -> dict:
+    """Calcula la porción exenta de cesantías + intereses de cesantías según
+    el Art. 206 num. 4 ET, con base en el ingreso laboral mensual promedio de
+    los últimos 6 meses de vinculación (dato que la propia DIAN reporta en la
+    exógena como 'Valor ingreso laboral promedio de los últimos N meses')."""
+    salario_uvt = pesos_a_uvt(salario_mensual_promedio_pesos)
+    for inf, sup, pct in CESANTIAS_EXENCION_TABLA:
+        if inf <= salario_uvt < sup or (sup == float("inf") and salario_uvt >= inf):
+            valor_exento = round(valor_cesantias_e_intereses * pct)
+            return {
+                "salario_mensual_promedio_uvt": round(salario_uvt, 2),
+                "rango_uvt": f"{inf} a {sup if sup != float('inf') else 'en adelante'}",
+                "porcentaje_exento": pct,
+                "valor_exento": valor_exento,
+                "valor_gravable": round(valor_cesantias_e_intereses - valor_exento),
+                "norma": "Art. 206 numeral 4 Estatuto Tributario",
+            }
+    raise ValueError("Salario mensual promedio fuera de rango")
+
 # Intereses / corrección monetaria en préstamos para adquisición de vivienda
 # (Art. 119 ET): límite 1.200 UVT anuales
 DEDUCCION_INTERESES_VIVIENDA_LIMITE_UVT = 1200

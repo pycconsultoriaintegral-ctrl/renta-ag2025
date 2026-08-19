@@ -31,6 +31,22 @@ def calcular_catalogo_beneficios(perfil: dict) -> list[dict]:
             "requiere_soporte": False,
         })
 
+    # 1b. Exención de cesantías e intereses de cesantías (Art. 206 num. 4 ET)
+    cesantias_e_intereses = perfil.get("cesantias_e_intereses", 0) or 0
+    salario_mensual_prom = perfil.get("salario_mensual_promedio_cesantias", 0) or 0
+    if cesantias_e_intereses > 0 and salario_mensual_prom > 0:
+        detalle_cesantias = config.calcular_exencion_cesantias(salario_mensual_prom, cesantias_e_intereses)
+        beneficios.append({
+            "beneficio": "Exención cesantías e intereses de cesantías",
+            "valor_potencial": detalle_cesantias["valor_exento"],
+            "limite_aplicable": f"{detalle_cesantias['porcentaje_exento']:.0%} exento según ingreso mensual "
+                                 f"promedio de {detalle_cesantias['salario_mensual_promedio_uvt']} UVT "
+                                 f"(rango {detalle_cesantias['rango_uvt']} UVT)",
+            "documento_requerido": "Certificado de cesantías e intereses del fondo/empleador",
+            "norma": "Art. 206 numeral 4 Estatuto Tributario",
+            "requiere_soporte": True,
+        })
+
     # 2. Deducción por dependientes (Art. 336 ET / Decreto 2231 de 2023)
     n_dependientes = min(perfil.get("num_dependientes", 0) or 0, config.MAX_DEPENDIENTES)
     if n_dependientes > 0:

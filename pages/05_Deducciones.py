@@ -46,6 +46,19 @@ with c2:
     compras_fe = st.number_input("Compras de bienes/servicios soportadas en factura electrónica", min_value=0.0, step=50000.0,
                                   value=float(ded_prev.get("compras_factura_electronica", 0)), key=f"ded_facturae_{cid}")
 
+st.markdown("**Cesantías e intereses de cesantías** (Art. 206 núm. 4 ET — exención parcial o total según el salario)")
+cc1, cc2 = st.columns(2)
+cesantias_e_intereses = cc1.number_input(
+    "Cesantías + intereses de cesantías recibidos en 2025", min_value=0.0, step=50000.0,
+    value=float(ded_prev.get("cesantias_e_intereses", 0)), key=f"ded_cesantias_{cid}",
+)
+salario_prom_cesantias = cc2.number_input(
+    "Ingreso laboral mensual promedio (últimos 6 meses de vinculación)", min_value=0.0, step=100000.0,
+    value=float(ded_prev.get("salario_mensual_promedio_cesantias", 0)), key=f"ded_salario_prom_{cid}",
+    help="Este es el mismo valor que la DIAN reporta en la exógena como 'Valor ingreso laboral promedio de "
+         "los últimos N meses' — NO se suma como ingreso, solo se usa aquí para calcular el % exento.",
+)
+
 perfil_calc = {
     "ingresos_laborales": ing_manual.get("trabajo_bruto", 0),
     "num_dependientes": perfil.get("num_dependientes", 0),
@@ -53,6 +66,8 @@ perfil_calc = {
     "medicina_prepagada": medicina_prepagada,
     "aportes_afc_pension_voluntario": aportes_afc,
     "gmf_pagado": gmf_pagado,
+    "cesantias_e_intereses": cesantias_e_intereses,
+    "salario_mensual_promedio_cesantias": salario_prom_cesantias,
     "compras_factura_electronica": compras_fe,
     "ingresos_totales_declarados": sum([
         ing_manual.get("trabajo_bruto", 0), ing_manual.get("capital_bruto", 0), ing_manual.get("no_laboral_bruto", 0)
