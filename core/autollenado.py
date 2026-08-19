@@ -98,13 +98,27 @@ def autocompletar_ingresos(cid: str) -> dict:
             "SELECT * FROM conciliacion WHERE contribuyente_id=?", (cid,)
         ).fetchall()]
 
-    retenciones = sum(
-        r["valor"] or 0 for r in registros
-        if r["estado"] == "CONFIRMADO" and (r["cedula_sugerida"] or "") == "Retenciones"
-    )
+    def _es_retencion(r):
+        # No depende solo de que 'cedula_sugerida' sea exactamente "Retenciones":
+        # si el usuario confirmó manualmente una fila cuyo concepto es
+        # inequívocamente una retención (aunque el motor la haya etiquetado con
+        # otra cédula por no reconocer el texto exacto), también se cuenta.
+        cedula = _sin_tildes(r.get("cedula_sugerida") or "")
+        concepto = _sin_tildes(r.get("concepto") or "")
+        return "retencion" in cedula or "retencion" in concepto or "autorretencion" in concepto
+
+    def _es_renta_capital(r):
+        cedula = _sin_tildes(r.get("cedula_sugerida") or "")
+        concepto = _sin_tildes(r.get("concepto") or "")
+        if "capital" in cedula:
+            return True
+        palabras = ["interes", "rendimiento financiero", "rendimientos financieros", "arrendamiento", "arriendo"]
+        return any(p in concepto for p in palabras)
+
+    retenciones = sum(r["valor"] or 0 for r in registros if r["estado"] == "CONFIRMADO" and _es_retencion(r))
     capital_bruto = sum(
         r["valor"] or 0 for r in registros
-        if r["estado"] == "CONFIRMADO" and "capital" in _sin_tildes(r["cedula_sugerida"] or "")
+        if r["estado"] == "CONFIRMADO" and _es_renta_capital(r) and not _es_retencion(r)
     )
     pendientes_revision = [
         r for r in registros
