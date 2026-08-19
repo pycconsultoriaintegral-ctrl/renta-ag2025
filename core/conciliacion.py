@@ -48,6 +48,48 @@ CASILLAS_DIAN = [
 def _detectar_por_casilla_dian(uso_sugerido: str):
     if not uso_sugerido:
         return None
+
+    # PRIORIDAD MÁXIMA: si la propia DIAN indica explícitamente que el valor
+    # es un "ingreso no constitutivo de renta" (ej. aportes obligatorios a
+    # salud/pensión a cargo del trabajador), NUNCA debe tratarse como ingreso
+    # (ni de capital, ni de trabajo), aunque el texto también mencione un
+    # código R58/R59/etc. Confundir esto llevaría a sumar como renta de
+    # capital un valor que en realidad es una deducción del ingreso laboral.
+    uso_norm = _sin_tildes(uso_sugerido)
+
+    # Igual de prioritario: valores que la DIAN marca como insumo de cálculo
+    # interno (ej. "Se utiliza para el cálculo de R36...") no son ingresos en
+    # sí mismos, aunque el texto mencione una casilla de ingreso (R32, R36...).
+    if "se utiliza para el calculo" in uso_norm or "utilizado para el calculo" in uso_norm:
+        return {
+            "cedula_sugerida": "Referencia DIAN (no sumar)",
+            "tratamiento_sugerido": "La DIAN indica que este valor es un insumo para calcular otra casilla "
+                                     "(ej. la renta exenta laboral), NO es un ingreso adicional que deba "
+                                     "sumarse aparte.",
+            "estado": "NO_INGRESO",
+            "soporte_requerido": None,
+        }
+
+    # Se exige que el texto EMPIECE con esta frase (no que solo la contenga en
+    # cualquier parte): la DIAN también usa la palabra "no constitutivos" para
+    # describir la porción no gravable DENTRO de un valor que en el resto del
+    # texto sí es ingreso (ej. "R58 Ingresos brutos por rentas de capital | R59
+    # Ingresos no constitutivos por rentas de capital"). Ese caso NO debe
+    # excluirse: requiere revisión del usuario, no es 100% INCRNGO como los
+    # aportes obligatorios (cuyo texto completo es solo esa frase, sin mezclar
+    # ninguna casilla de ingreso real).
+    if uso_norm.startswith("ingresos no constitutivos de renta"):
+        return {
+            "cedula_sugerida": "INCRNGO (aporte obligatorio, no es ingreso)",
+            "tratamiento_sugerido": "La propia DIAN marca este valor como 'ingreso no constitutivo de renta' "
+                                     "(ej. aporte obligatorio a salud/pensión del trabajador). NO debe sumarse "
+                                     "como ingreso de ninguna cédula: se usa para depurar el ingreso laboral "
+                                     "bruto en el campo 'Aportes obligatorios salud/pensión (INCRNGO)' del "
+                                     "módulo Ingresos.",
+            "estado": "NO_INGRESO",
+            "soporte_requerido": "Certificado de ingresos y retenciones (detalle de aportes obligatorios)",
+        }
+
     for patron, cedula, tratamiento, estado, soporte in CASILLAS_DIAN:
         if patron.search(uso_sugerido):
             return {
@@ -61,6 +103,12 @@ def _detectar_por_casilla_dian(uso_sugerido: str):
 
 # Cada regla: (palabras_clave, cedula, tratamiento, estado, soporte_requerido)
 REGLAS = [
+    (["ingreso laboral promedio"],
+     "Referencia DIAN (no sumar)", "Este valor es una REFERENCIA que la DIAN usa internamente para calcular "
+     "la renta exenta laboral (Art. 206 ET), NO es un ingreso adicional. No debe sumarse a los ingresos "
+     "brutos de trabajo (ya están reportados aparte, ej. en 'Pagos por salarios').",
+     "NO_INGRESO", None),
+
     (["salario", "pagos laborales", "relacion laboral", "aportes obligatorios"],
      "Rentas de trabajo", "Ingreso laboral - depurar con certificado de ingresos y retenciones",
      "POR_CONCILIAR", "Certificado de ingresos y retenciones (formulario 220) del empleador"),
