@@ -55,7 +55,8 @@ ganancias_ocasionales = liq.liquidar_ganancias_ocasionales(perfil.get("ganancias
 retenciones = float(perfil.get("retenciones_manual", 0))
 liquidacion = liq.liquidar_declaracion(cedula_general, cedula_pensiones, dividendos, ganancias_ocasionales,
                                        retenciones, float(perfil.get("descuentos_tributarios", 0)),
-                                       float(perfil.get("anticipo_renta_anterior", 0)))
+                                       float(perfil.get("anticipo_renta_anterior", 0)),
+                                       float(perfil.get("saldo_favor_anio_anterior", 0)))
 
 patrimonio_exogena = sum(
     r["valor"] or 0 for r in conciliacion
