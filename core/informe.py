@@ -52,6 +52,7 @@ def construir_informe(contribuyente: dict, patrimonio: dict, cedula_general: dic
         f"Impuesto ganancias ocasionales:      ${liquidacion['impuesto_ganancias_ocasionales']:>18,.0f}",
         f"Total impuesto a cargo:              ${liquidacion['total_impuesto_a_cargo']:>18,.0f}",
         f"Retenciones del año:                 ${liquidacion['retenciones_anio']:>18,.0f}",
+        f"Saldo a favor año anterior (no dev.): ${liquidacion.get('saldo_favor_anio_anterior', 0):>18,.0f}",
         f"SALDO A PAGAR:                       ${liquidacion['saldo_a_pagar']:>18,.0f}" if liquidacion["saldo_a_pagar"] > 0 else
         f"SALDO A FAVOR:                       ${liquidacion['saldo_a_favor']:>18,.0f}",
         "",
