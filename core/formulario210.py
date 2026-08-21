@@ -69,15 +69,19 @@ def construir_formulario210(patrimonio: dict, cedula_general: dict, cedula_pensi
 
     add("129", "Total impuesto a cargo", liquidacion["total_impuesto_a_cargo"], "Calculado",
         "Impuesto neto de renta + Impuesto de ganancias ocasionales", "N/A (cálculo)")
+    add("131", "Saldo a favor año anterior sin solicitud de devolución y/o compensación",
+        liquidacion.get("saldo_favor_anio_anterior", 0), "Módulo Liquidación (manual, según declaración anterior)",
+        "Saldo a favor del año gravable anterior no solicitado en devolución/compensación, imputado contra el impuesto de este año",
+        "Declaración de renta del año anterior / declaración sugerida por la DIAN")
     add("132", "Total retenciones año gravable 2025", liquidacion["retenciones_anio"],
         "Módulo Exógena (conciliado)", "Suma de retenciones en la fuente confirmadas en la conciliación",
         "Certificados de retención en la fuente")
 
     if liquidacion["saldo_a_pagar"] > 0:
         add("Final", "Saldo a pagar", liquidacion["saldo_a_pagar"], "Calculado",
-            "Total impuesto a cargo + anticipo - retenciones", "N/A (cálculo)", estado="SALDO_A_PAGAR")
+            "Total impuesto a cargo + anticipo - retenciones - saldo a favor año anterior", "N/A (cálculo)", estado="SALDO_A_PAGAR")
     else:
         add("Final", "Saldo a favor", liquidacion["saldo_a_favor"], "Calculado",
-            "Retenciones - (Total impuesto a cargo + anticipo)", "N/A (cálculo)", estado="SALDO_A_FAVOR")
+            "Retenciones + saldo a favor año anterior - (Total impuesto a cargo + anticipo)", "N/A (cálculo)", estado="SALDO_A_FAVOR")
 
     return casillas
