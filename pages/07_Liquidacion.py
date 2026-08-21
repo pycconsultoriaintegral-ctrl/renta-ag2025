@@ -27,18 +27,26 @@ if not ing:
 beneficios_soportados = dmod.total_soportado(cid)
 
 st.markdown("### Retenciones y otros datos")
-c1, c2, c3 = st.columns(3)
+c1, c2, c3, c4 = st.columns(4)
 retenciones = c1.number_input("Total retenciones en la fuente del año (confirmadas)", min_value=0.0, step=10000.0,
                                value=float(perfil.get("retenciones_manual", 0)))
 descuentos = c2.number_input("Descuentos tributarios (ej. impuestos pagados en el exterior)", min_value=0.0, step=10000.0,
                               value=float(perfil.get("descuentos_tributarios", 0)))
 anticipo = c3.number_input("Anticipo de renta liquidado en la declaración anterior", min_value=0.0, step=10000.0,
                             value=float(perfil.get("anticipo_renta_anterior", 0)))
+saldo_favor_anterior = c4.number_input(
+    "Saldo a favor del año anterior sin solicitud de devolución y/o compensación",
+    min_value=0.0, step=10000.0,
+    value=float(perfil.get("saldo_favor_anio_anterior", 0)),
+    help="Casilla 131 del Formulario 210. Saldo a favor del año gravable anterior que no fue "
+         "solicitado en devolución/compensación y que se imputa contra el impuesto de este año.",
+)
 
 if st.button("💾 Guardar y calcular", type="primary"):
     perfil["retenciones_manual"] = retenciones
     perfil["descuentos_tributarios"] = descuentos
     perfil["anticipo_renta_anterior"] = anticipo
+    perfil["saldo_favor_anio_anterior"] = saldo_favor_anterior
     db.upsert_contribuyente(cid, perfil_extra=perfil)
     st.rerun()
 
@@ -50,7 +58,7 @@ dividendos = liq.liquidar_dividendos(ing.get("dividendos_gravados", 0), ing.get(
 ganancias_ocasionales_items = perfil.get("ganancias_ocasionales", [])
 ganancias_ocasionales = liq.liquidar_ganancias_ocasionales(ganancias_ocasionales_items)
 resultado = liq.liquidar_declaracion(cedula_general, cedula_pensiones, dividendos, ganancias_ocasionales,
-                                      retenciones, descuentos, anticipo)
+                                      retenciones, descuentos, anticipo, saldo_favor_anterior)
 
 st.session_state["ultimo_calculo"] = {
     "cedula_general": cedula_general, "cedula_pensiones": cedula_pensiones,
